@@ -63,9 +63,19 @@ spec:
                   topologyKey: "kubernetes.io/hostname"
                 weight: 100
           serviceAccountName: {{.config.unleash.service_account_name}}
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
           containers:
           - image: "{{.config.unleash.image}}"
             name: unleash
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
             env:
               # database settings
               - name: DATABASE_HOST
@@ -159,6 +169,12 @@ spec:
               tcpSocket:
                 port: 4242
               timeoutSeconds: 1
+            volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          volumes:
+          - name: tmp
+            emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
