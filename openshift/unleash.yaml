@@ -9,6 +9,7 @@ objects:
   kind: ServiceAccount
   metadata:
     name: ${identifier}
+  automountServiceAccountToken: false
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -45,10 +46,20 @@ objects:
                 topologyKey: "kubernetes.io/hostname"
               weight: 100
         serviceAccountName: ${identifier}
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         containers:
         - image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: ${identifier}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             # database settings
             - name: DATABASE_HOST
@@ -144,6 +155,12 @@ objects:
             preStop:
               exec:
                 command: [ "sleep", "10" ]
+          volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+        volumes:
+        - name: tmp
+          emptyDir: {}
 - apiVersion: v1
   kind: Service
   metadata:

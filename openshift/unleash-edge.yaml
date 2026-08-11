@@ -8,6 +8,7 @@ objects:
   kind: ServiceAccount
   metadata:
     name: ${identifier}
+  automountServiceAccountToken: false
   imagePullSecrets:
   - name: ${IMAGE_PULL_SECRET}
 
@@ -47,10 +48,20 @@ objects:
                 topologyKey: "kubernetes.io/hostname"
               weight: 100
         serviceAccountName: ${identifier}
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         containers:
         - image: ${IMAGE}:${unleashEdgeVersion}
           imagePullPolicy: Always
           name: ${identifier}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           args:
           - edge
           env:
@@ -94,6 +105,12 @@ objects:
             preStop:
               exec:
                 command: ["sleep", "5"]
+          volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+        volumes:
+        - name: tmp
+          emptyDir: {}
 - apiVersion: v1
   kind: Service
   metadata:

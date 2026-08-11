@@ -8,6 +8,7 @@ objects:
   kind: ServiceAccount
   metadata:
     name: ${identifier}
+  automountServiceAccountToken: false
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -44,10 +45,20 @@ objects:
                 topologyKey: "kubernetes.io/hostname"
               weight: 100
         serviceAccountName: ${identifier}
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         containers:
         - image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: ${identifier}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             # database settings
             - name: DATABASE_HOST
@@ -120,11 +131,15 @@ objects:
             {{- if .Values.internal_certs }}
             - name: NODE_EXTRA_CA_CERTS
               value: ${INTERNAL_GIT_CA_PATH}
+            {{- end}}
           volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+          {{- if .Values.internal_certs }}
           - name: ca-certs
             mountPath: ${INTERNAL_GIT_CA_PATH}
             subPath: ca.crt
-            {{- end}}
+          {{- end}}
           ports:
           - name: unleash
             containerPort: 4242
@@ -151,8 +166,10 @@ objects:
             preStop:
               exec:
                 command: [ "sleep", "10" ]
-        {{- if .Values.internal_certs }}
         volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.internal_certs }}
         - name: ca-certs
           secret:
             secretName: ca-certs
